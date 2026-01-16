@@ -6,7 +6,7 @@ import ComingSoon from './pages/ComingSoon';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/collaborators-app">
       <div className="min-h-screen bg-gray-50">
         <Header />
         <Routes>
