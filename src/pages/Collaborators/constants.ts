@@ -2,7 +2,6 @@ import type {
   Campaign, 
   CollaboratorProfile, 
   MerchantLeaderboardEntry, 
-  DailyWinner,
   TierConfig,
   StatusConfig,
   Tier,
@@ -322,8 +321,8 @@ export const XP_CONFIG = {
 export const mockCollaborators: CollaboratorProfile[] = [
   {
     id: 'collab-1',
-    handle: '@foodie_doha',
-    avatar: '👨‍🍳',
+    handle: '@yusuf_fares',
+    avatar: '/YusufFares.jpeg',
     tier: 'platinum',
     approvedCount: 67,
     totalXP: 15850,
@@ -336,8 +335,8 @@ export const mockCollaborators: CollaboratorProfile[] = [
   },
   {
     id: 'collab-2',
-    handle: '@qatar_eats',
-    avatar: '🍽️',
+    handle: '@david_bratu',
+    avatar: '/DavidBratu.jpeg',
     tier: 'gold',
     approvedCount: 34,
     totalXP: 8520,
@@ -349,8 +348,8 @@ export const mockCollaborators: CollaboratorProfile[] = [
   },
   {
     id: 'collab-3',
-    handle: '@tech_reviewer_qa',
-    avatar: '📱',
+    handle: '@ali_baba',
+    avatar: '/AliBaba.jpeg',
     tier: 'silver',
     approvedCount: 18,
     totalXP: 4280,
@@ -361,11 +360,11 @@ export const mockCollaborators: CollaboratorProfile[] = [
   },
   {
     id: 'collab-4',
-    handle: '@lifestyle_qatar',
-    avatar: '✨',
-    tier: 'gold',
-    approvedCount: 28,
-    totalXP: 6890,
+    handle: '@yusuf_frumosul',
+    avatar: '/YusufFrumosul.jpeg',
+    tier: 'silver',
+    approvedCount: 20,
+    totalXP: 3200,
     topCampaigns: [
       { merchant: 'Tea Time', logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpqawVmP77HQWimN-bUvxVpOlpLE8gYHAXCw&s', xp: 1850 },
       { merchant: 'Cat Planet', logo: 'https://images.snoonu.com/brand/header_image/2024-04/8908d507-e801-4afe-b267-80b8fcd2f5b3_Popularbrand7.png?format=webp', xp: 1420 },
@@ -374,8 +373,8 @@ export const mockCollaborators: CollaboratorProfile[] = [
   },
   {
     id: 'collab-5',
-    handle: '@doha_adventures',
-    avatar: '🌴',
+    handle: '@andrei_popescu',
+    avatar: '/AndreiPopescu.jpeg',
     tier: 'bronze',
     approvedCount: 8,
     totalXP: 1680,
@@ -395,29 +394,3 @@ export const mockMerchantLeaderboard: MerchantLeaderboardEntry[] = [
   { id: 'merch-6', merchantId: 'merch-6', name: 'Toysimo', merchant: 'Toysimo', logo: 'https://images.snoonu.com/brand/header_image/2024-03/010ca983-af9b-4449-9ef0-d35c66da220b_FavoritebrandToysimo.png?format=webp', totalXPAwarded: 11700, collabsEnrolled: 34, tags: [] },
 ];
 
-export const mockDailyWinners: DailyWinner[] = [
-  {
-    collaboratorId: 'collab-1',
-    handle: 'foodie_doha',
-    collaborator: mockCollaborators[0],
-    campaign: 'Weekend Special',
-    merchant: 'Pizza Palace',
-    xpEarned: 450,
-  },
-  {
-    collaboratorId: 'collab-2',
-    handle: 'qatar_eats',
-    collaborator: mockCollaborators[1],
-    campaign: 'Fresh Start',
-    merchant: 'FreshBox Market',
-    xpEarned: 380,
-  },
-  {
-    collaboratorId: 'collab-4',
-    handle: 'lifestyle_qatar',
-    collaborator: mockCollaborators[3],
-    campaign: 'Morning Brew',
-    merchant: 'Cafe Arabica',
-    xpEarned: 320,
-  },
-];

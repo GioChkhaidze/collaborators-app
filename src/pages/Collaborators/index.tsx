@@ -22,7 +22,6 @@ export const Collaborators = () => {
     rejectEnrollment,
     collaborators,
     merchantLeaderboard,
-    dailyWinners,
     isDemoExpanded,
     setDemoExpanded,
     enrollSampleCampaign,
@@ -73,7 +72,6 @@ export const Collaborators = () => {
             enrollments={enrollments}
             collaborators={collaborators}
             merchantLeaderboard={merchantLeaderboard}
-            dailyWinners={dailyWinners}
           />
         )}
       </div>

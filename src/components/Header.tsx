@@ -97,19 +97,29 @@ export default function Header() {
               عربى
             </button>
             <nav className="flex items-center gap-8">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`text-sm transition-colors ${
-                    location.pathname === item.path
-                      ? 'text-snoonu-red font-medium'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                const isCollaborators = item.path === '/collaborators';
+                // Highlight Collaborators button on SCity, Market, Restaurants, and Grocery pages
+                const highlightPages = ['/', '/market', '/restaurants', '/grocery'];
+                const shouldHighlight = isCollaborators && highlightPages.includes(location.pathname);
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`text-sm transition-all ${
+                      isActive
+                        ? 'text-snoonu-red font-medium'
+                        : shouldHighlight
+                        ? 'text-snoonu-red font-medium animate-pulse ring-2 ring-snoonu-red/30 rounded-full px-3 py-1'
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </div>

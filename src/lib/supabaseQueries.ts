@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { Campaign, CollaboratorProfile, MerchantLeaderboardEntry, DailyWinner } from '../pages/Collaborators/types';
+import type { Campaign, CollaboratorProfile, MerchantLeaderboardEntry } from '../pages/Collaborators/types';
 
 /**
  * Supabase queries for the Collaborators app
@@ -179,31 +179,6 @@ export const fetchMerchantLeaderboard = async (): Promise<MerchantLeaderboardEnt
     return data || [];
   } catch (error) {
     console.error('Error fetching merchant leaderboard:', error);
-    return [];
-  }
-};
-
-// Example: Fetch daily winners
-export const fetchDailyWinners = async (): Promise<DailyWinner[]> => {
-  if (!isSupabaseConfigured()) {
-    console.log('Supabase not configured, returning empty array');
-    return [];
-  }
-
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase!
-      .schema('Snoonu Collaborators')
-      .from('daily_winners')
-      .select('*')
-      .eq('date', today)
-      .order('xp_earned', { ascending: false })
-      .limit(3);
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching daily winners:', error);
     return [];
   }
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { Enrollment, CollaboratorProfile, MerchantLeaderboardEntry, DailyWinner } from '../types';
+import type { Enrollment, CollaboratorProfile, MerchantLeaderboardEntry } from '../types';
 import { tierConfig } from '../constants';
 import { computeTier, getNextTier, getProgressToNextTier } from '../utils';
 import { TierBadge } from './TierBadge';
@@ -301,7 +301,6 @@ interface LeaderboardTabProps {
   enrollments: Enrollment[];
   collaborators: CollaboratorProfile[];
   merchantLeaderboard: MerchantLeaderboardEntry[];
-  dailyWinners: DailyWinner[];
 }
 
 type LeaderboardTimeFilter = 'monthly' | 'allTime';
@@ -310,30 +309,109 @@ export const LeaderboardTab = ({
   enrollments,
   collaborators,
   merchantLeaderboard,
-  // dailyWinners - removed, no longer used
 }: LeaderboardTabProps) => {
   const [selectedCollaborator, setSelectedCollaborator] = useState<CollaboratorProfile | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<typeof FEATURED_VIDEOS[0] | null>(null);
   const [timeFilter, setTimeFilter] = useState<LeaderboardTimeFilter>('monthly');
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
+  // Helper function to get image URL with base path
+  // In Vite, public folder assets are accessible at BASE_URL + path
+  const getImageUrl = (avatar: string) => {
+    if (!avatar || !avatar.startsWith('/')) return null;
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    // BASE_URL already ends with /, so we need to remove leading / from avatar if baseUrl ends with /
+    if (baseUrl.endsWith('/') && avatar.startsWith('/')) {
+      return baseUrl + avatar.slice(1);
+    }
+    return baseUrl + avatar;
+  };
+
+  // Handle image load errors
+  const handleImageError = (avatar: string, e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('Failed to load avatar image:', avatar, e);
+    setImageErrors(prev => new Set(prev).add(avatar));
+  };
 
   const approvedCount = enrollments.filter(e => e.status === 'approved').length;
 
-  // Simulate different data for monthly vs all time
-  // In production, this would come from an API
+  // Calculate time-based XP and sort collaborators
+  // In production, this would come from an API with proper time-based filtering
   const filteredCollaborators = useMemo(() => {
-    if (timeFilter === 'monthly') {
-      // Monthly: show recent activity, slightly randomized order
-      return [...collaborators].sort((a, b) => {
-        // Prioritize recent joiners for monthly view
-        const aRecent = a.joinedDate?.includes('Jan') || a.joinedDate?.includes('Dec') ? 1 : 0;
-        const bRecent = b.joinedDate?.includes('Jan') || b.joinedDate?.includes('Dec') ? 1 : 0;
-        if (bRecent !== aRecent) return bRecent - aRecent;
-        return b.totalXP - a.totalXP;
-      });
-    } else {
-      // All time: sort by total XP
-      return [...collaborators].sort((a, b) => b.totalXP - a.totalXP);
-    }
+    // Helper function to generate deterministic "random" value from string
+    const hashString = (str: string): number => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return Math.abs(hash) % 100 / 100; // Return value between 0 and 1
+    };
+    
+    // Map collaborators with time-based XP and approvals
+    const collaboratorsWithTimeXP = collaborators.map(collab => {
+      // Parse joinedDate to determine activity period
+      const joinedDateStr = collab.joinedDate || '';
+      const joinedRecently = joinedDateStr.includes('Dec') || joinedDateStr.includes('Jan');
+      
+      // Use deterministic hash based on collaborator ID for consistent values
+      const hashValue = hashString(collab.id);
+      
+      if (timeFilter === 'monthly') {
+        // For monthly view: calculate XP and approvals earned in the current month
+        // Estimate monthly values based on:
+        // - If joined this month: use smaller fraction (they're new)
+        // - If joined earlier: use higher fraction (active user)
+        // - Base it on a percentage of total values, but scale it realistically
+        
+        let monthlyXP: number;
+        let monthlyApprovals: number;
+        
+        if (joinedRecently) {
+          // Joined recently (Dec/Jan) - estimate 20-30% of total XP as monthly
+          monthlyXP = Math.floor(collab.totalXP * (0.20 + hashValue * 0.10));
+          // Approvals: estimate 25-35% of total approvals as monthly
+          monthlyApprovals = Math.floor(collab.approvedCount * (0.25 + hashValue * 0.10));
+        } else {
+          // Joined earlier - estimate 15-25% of total XP as monthly
+          // More established users might have earned more total XP, but monthly is still a fraction
+          monthlyXP = Math.floor(collab.totalXP * (0.15 + hashValue * 0.10));
+          // Approvals: estimate 20-30% of total approvals as monthly
+          monthlyApprovals = Math.floor(collab.approvedCount * (0.20 + hashValue * 0.10));
+        }
+        
+        // Ensure monthly values are at least 1 if user has any approvals
+        if (collab.approvedCount > 0) {
+          monthlyApprovals = Math.max(monthlyApprovals, 1);
+        }
+        
+        // Ensure monthly XP is at least a minimum based on monthly approvals
+        // More active users should have more monthly XP
+        const minMonthlyXP = Math.floor(monthlyApprovals * 50); // Base XP per approval
+        monthlyXP = Math.max(monthlyXP, minMonthlyXP);
+        
+        // Don't exceed total values
+        monthlyXP = Math.min(monthlyXP, collab.totalXP);
+        monthlyApprovals = Math.min(monthlyApprovals, collab.approvedCount);
+        
+        return {
+          ...collab,
+          displayXP: monthlyXP,
+          displayApprovals: monthlyApprovals,
+        };
+      } else {
+        // All time view: use full totalXP and approvedCount
+        return {
+          ...collab,
+          displayXP: collab.totalXP,
+          displayApprovals: collab.approvedCount,
+        };
+      }
+    });
+    
+    // Sort by display XP (descending order - highest XP first)
+    return collaboratorsWithTimeXP.sort((a, b) => b.displayXP - a.displayXP);
   }, [collaborators, timeFilter]);
   const currentTier = computeTier(approvedCount);
   const nextTier = getNextTier(currentTier);
@@ -424,8 +502,8 @@ export const LeaderboardTab = ({
           </div>
 
           {/* Podium Section */}
-          <div className="px-6 py-6">
-            <div className="relative flex items-end justify-center gap-4 min-h-[260px]">
+          <div className="px-6 py-6 pt-12">
+            <div className="relative flex items-end justify-center gap-4" style={{ minHeight: 'calc(260px * 0.95)' }}>
               {/* 2nd Place - Left */}
               {filteredCollaborators[1] && (
                 <button
@@ -434,16 +512,26 @@ export const LeaderboardTab = ({
                 >
                   {/* XP Badge */}
                   <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
-                    {filteredCollaborators[1].totalXP.toLocaleString()}
+                    {(filteredCollaborators[1] as any).displayXP?.toLocaleString() || filteredCollaborators[1].totalXP.toLocaleString()}
                     <span className="ml-1 opacity-90">XP</span>
                   </div>
                   
                   {/* Avatar Ring */}
                   <div className="relative mb-2 mt-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 p-1 shadow-lg">
-                      <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[1].tier].gradient} flex items-center justify-center text-white font-bold text-xl`}>
-                        {filteredCollaborators[1].handle.replace('@', '').charAt(0).toUpperCase()}
-                      </div>
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 p-1 shadow-lg overflow-hidden">
+                      {filteredCollaborators[1].avatar && filteredCollaborators[1].avatar.startsWith('/') && !imageErrors.has(filteredCollaborators[1].avatar) ? (
+                        <img
+                          src={getImageUrl(filteredCollaborators[1].avatar) || filteredCollaborators[1].avatar}
+                          alt={filteredCollaborators[1].handle}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => handleImageError(filteredCollaborators[1].avatar, e)}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[1].tier].gradient} flex items-center justify-center text-white font-bold text-xl`}>
+                          {filteredCollaborators[1].handle.replace('@', '').charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-sm shadow-md border-2 border-white">
                       2
@@ -453,7 +541,7 @@ export const LeaderboardTab = ({
                   {/* Name & Stats */}
                   <div className="text-center mt-2">
                     <div className="text-gray-900 font-semibold text-sm truncate max-w-[100px]">{filteredCollaborators[1].handle}</div>
-                    <div className="text-gray-500 text-xs mt-0.5">{filteredCollaborators[1].approvedCount} approvals</div>
+                    <div className="text-gray-500 text-xs mt-0.5">{(filteredCollaborators[1] as any).displayApprovals?.toLocaleString() || filteredCollaborators[1].approvedCount} approvals</div>
                   </div>
 
                   {/* Podium Stand */}
@@ -476,16 +564,26 @@ export const LeaderboardTab = ({
                   
                   {/* XP Badge */}
                   <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
-                    {filteredCollaborators[0].totalXP.toLocaleString()}
+                    {(filteredCollaborators[0] as any).displayXP?.toLocaleString() || filteredCollaborators[0].totalXP.toLocaleString()}
                     <span className="ml-1 opacity-90">XP</span>
                   </div>
                   
                   {/* Avatar Ring - Larger for 1st */}
                   <div className="relative mb-2 mt-12">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 p-1 shadow-xl ring-4 ring-yellow-400/30">
-                      <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[0].tier].gradient} flex items-center justify-center text-white font-bold text-2xl`}>
-                        {filteredCollaborators[0].handle.replace('@', '').charAt(0).toUpperCase()}
-                      </div>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 p-1 shadow-xl ring-4 ring-yellow-400/30 overflow-hidden">
+                      {filteredCollaborators[0].avatar && filteredCollaborators[0].avatar.startsWith('/') && !imageErrors.has(filteredCollaborators[0].avatar) ? (
+                        <img
+                          src={getImageUrl(filteredCollaborators[0].avatar) || filteredCollaborators[0].avatar}
+                          alt={filteredCollaborators[0].handle}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => handleImageError(filteredCollaborators[0].avatar, e)}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[0].tier].gradient} flex items-center justify-center text-white font-bold text-2xl`}>
+                          {filteredCollaborators[0].handle.replace('@', '').charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold shadow-lg border-2 border-white">
                       1
@@ -495,11 +593,11 @@ export const LeaderboardTab = ({
                   {/* Name & Stats */}
                   <div className="text-center mt-2">
                     <div className="text-gray-900 font-bold text-base truncate max-w-[120px]">{filteredCollaborators[0].handle}</div>
-                    <div className="text-gray-500 text-xs mt-0.5">{filteredCollaborators[0].approvedCount} approvals</div>
+                    <div className="text-gray-500 text-xs mt-0.5">{(filteredCollaborators[0] as any).displayApprovals?.toLocaleString() || filteredCollaborators[0].approvedCount} approvals</div>
                   </div>
 
                   {/* Podium Stand - Tallest */}
-                  <div className="w-32 h-32 bg-gradient-to-t from-yellow-500 to-yellow-400 rounded-t-xl mt-3 flex items-center justify-center shadow-inner relative overflow-hidden">
+                  <div className="w-32 bg-gradient-to-t from-yellow-500 to-yellow-400 rounded-t-xl mt-3 flex items-center justify-center shadow-inner relative overflow-hidden" style={{ height: 'calc(8rem * 0.95)' }}>
                     <span className="text-5xl font-bold text-white/80">1</span>
                     {/* Shine effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
@@ -515,16 +613,26 @@ export const LeaderboardTab = ({
                 >
                   {/* XP Badge */}
                   <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
-                    {filteredCollaborators[2].totalXP.toLocaleString()}
+                    {(filteredCollaborators[2] as any).displayXP?.toLocaleString() || filteredCollaborators[2].totalXP.toLocaleString()}
                     <span className="ml-1 opacity-90">XP</span>
                   </div>
                   
                   {/* Avatar Ring */}
                   <div className="relative mb-2 mt-6">
-                    <div className="w-18 h-18 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 p-1 shadow-lg" style={{ width: '72px', height: '72px' }}>
-                      <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[2].tier].gradient} flex items-center justify-center text-white font-bold text-lg`}>
-                        {filteredCollaborators[2].handle.replace('@', '').charAt(0).toUpperCase()}
-                      </div>
+                    <div className="w-18 h-18 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 p-1 shadow-lg overflow-hidden" style={{ width: '72px', height: '72px' }}>
+                      {filteredCollaborators[2].avatar && filteredCollaborators[2].avatar.startsWith('/') && !imageErrors.has(filteredCollaborators[2].avatar) ? (
+                        <img
+                          src={getImageUrl(filteredCollaborators[2].avatar) || filteredCollaborators[2].avatar}
+                          alt={filteredCollaborators[2].handle}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => handleImageError(filteredCollaborators[2].avatar, e)}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className={`w-full h-full rounded-full bg-gradient-to-br ${tierConfig[filteredCollaborators[2].tier].gradient} flex items-center justify-center text-white font-bold text-lg`}>
+                          {filteredCollaborators[2].handle.replace('@', '').charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center text-white font-bold text-sm shadow-md border-2 border-white">
                       3
@@ -534,7 +642,7 @@ export const LeaderboardTab = ({
                   {/* Name & Stats */}
                   <div className="text-center mt-2">
                     <div className="text-gray-900 font-semibold text-sm truncate max-w-[100px]">{filteredCollaborators[2].handle}</div>
-                    <div className="text-gray-500 text-xs mt-0.5">{filteredCollaborators[2].approvedCount} approvals</div>
+                    <div className="text-gray-500 text-xs mt-0.5">{(filteredCollaborators[2] as any).displayApprovals?.toLocaleString() || filteredCollaborators[2].approvedCount} approvals</div>
                   </div>
 
                   {/* Podium Stand */}
@@ -558,19 +666,29 @@ export const LeaderboardTab = ({
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500">
                     {i + 4}
                   </div>
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${tierConfig[collab.tier].gradient} flex items-center justify-center text-white font-bold shadow-sm`}>
-                    {collab.handle.replace('@', '').charAt(0).toUpperCase()}
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${tierConfig[collab.tier].gradient} flex items-center justify-center text-white font-bold shadow-sm overflow-hidden`}>
+                    {collab.avatar && collab.avatar.startsWith('/') && !imageErrors.has(collab.avatar) ? (
+                      <img
+                        src={getImageUrl(collab.avatar) || collab.avatar}
+                        alt={collab.handle}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => handleImageError(collab.avatar, e)}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span>{collab.handle.replace('@', '').charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 truncate">{collab.handle}</div>
                     <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                       <TierBadge tier={collab.tier} size="sm" />
                       <span className="text-gray-300">•</span>
-                      <span>{collab.approvedCount} approvals</span>
+                      <span>{(collab as any).displayApprovals?.toLocaleString() || collab.approvedCount} approvals</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold text-emerald-500">{collab.totalXP.toLocaleString()} XP</div>
+                    <div className="text-sm font-bold text-emerald-500">{(collab as any).displayXP?.toLocaleString() || collab.totalXP.toLocaleString()} XP</div>
                   </div>
                 </button>
               ))}

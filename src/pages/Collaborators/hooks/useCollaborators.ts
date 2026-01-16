@@ -5,10 +5,9 @@ import type {
   Campaign, 
   CollaboratorProfile, 
   MerchantLeaderboardEntry, 
-  DailyWinner,
   EnrollmentStatus 
 } from '../types';
-import { campaigns, mockCollaborators, mockMerchantLeaderboard, mockDailyWinners } from '../constants';
+import { campaigns, mockCollaborators, mockMerchantLeaderboard } from '../constants';
 import { nextEnrollmentState, isTerminalState } from '../utils';
 
 interface UseCollaboratorsReturn {
@@ -28,13 +27,11 @@ interface UseCollaboratorsReturn {
   // Leaderboard data
   collaborators: CollaboratorProfile[];
   merchantLeaderboard: MerchantLeaderboardEntry[];
-  dailyWinners: DailyWinner[];
   
   // Seed data
   seedData: (data: {
     collaborators: CollaboratorProfile[];
     merchantLeaderboard: MerchantLeaderboardEntry[];
-    dailyWinners: DailyWinner[];
   }) => void;
   
   // Demo controls
@@ -53,8 +50,7 @@ export const useCollaborators = (): UseCollaboratorsReturn => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [collaborators, setCollaborators] = useState<CollaboratorProfile[]>(mockCollaborators);
   const [merchantLeaderboard, setMerchantLeaderboard] = useState<MerchantLeaderboardEntry[]>(mockMerchantLeaderboard);
-  const [dailyWinners, setDailyWinners] = useState<DailyWinner[]>(mockDailyWinners);
-  const [isDemoExpanded, setDemoExpanded] = useState(true);
+  const [isDemoExpanded, setDemoExpanded] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -178,11 +174,9 @@ export const useCollaborators = (): UseCollaboratorsReturn => {
   const seedData = useCallback((data: {
     collaborators: CollaboratorProfile[];
     merchantLeaderboard: MerchantLeaderboardEntry[];
-    dailyWinners: DailyWinner[];
   }) => {
     setCollaborators(data.collaborators);
     setMerchantLeaderboard(data.merchantLeaderboard);
-    setDailyWinners(data.dailyWinners);
     showToast('Leaderboard data seeded!', 'info');
   }, [showToast]);
 
@@ -209,7 +203,6 @@ export const useCollaborators = (): UseCollaboratorsReturn => {
     rejectEnrollment,
     collaborators,
     merchantLeaderboard,
-    dailyWinners,
     seedData,
     isDemoExpanded,
     setDemoExpanded,

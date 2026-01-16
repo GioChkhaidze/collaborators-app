@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CollaboratorProfile } from '../types';
 import { tierConfig } from '../constants';
 import { CloseIcon } from './Icons';
@@ -15,6 +15,7 @@ export const CollaboratorProfileModal = ({
 }: CollaboratorProfileModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     triggerRef.current = document.activeElement;
@@ -30,6 +31,21 @@ export const CollaboratorProfileModal = ({
       }
     };
   }, [onClose]);
+
+  // Reset image error when collaborator changes
+  useEffect(() => {
+    setImageError(false);
+  }, [collaborator.id]);
+
+  // Helper function to get image URL with base path
+  const getImageUrl = (avatar: string) => {
+    if (!avatar || !avatar.startsWith('/')) return null;
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    if (baseUrl.endsWith('/') && avatar.startsWith('/')) {
+      return baseUrl + avatar.slice(1);
+    }
+    return baseUrl + avatar;
+  };
 
   const tier = tierConfig[collaborator.tier];
 
@@ -61,10 +77,20 @@ export const CollaboratorProfileModal = ({
           
           {/* Avatar */}
           <div className="absolute -bottom-10 left-6">
-            <div className="w-20 h-20 bg-white rounded-full p-1 shadow-lg">
-              <div className={`w-full h-full rounded-full bg-gradient-to-br ${tier.gradient || 'from-gray-400 to-gray-600'} flex items-center justify-center text-3xl text-white font-bold`}>
-                {collaborator.handle.charAt(0).toUpperCase()}
-              </div>
+            <div className="w-20 h-20 bg-white rounded-full p-1 shadow-lg overflow-hidden">
+              {collaborator.avatar && collaborator.avatar.startsWith('/') && !imageError ? (
+                <img
+                  src={getImageUrl(collaborator.avatar) || collaborator.avatar}
+                  alt={collaborator.handle}
+                  className="w-full h-full object-cover rounded-full"
+                  onError={() => setImageError(true)}
+                  loading="eager"
+                />
+              ) : (
+                <div className={`w-full h-full rounded-full bg-gradient-to-br ${tier.gradient || 'from-gray-400 to-gray-600'} flex items-center justify-center text-3xl text-white font-bold`}>
+                  {collaborator.handle.replace('@', '').charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
           </div>
         </div>

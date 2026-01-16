@@ -219,7 +219,7 @@ export const EnrollmentDetailModal = ({
                 <p className="font-semibold text-blue-700 text-lg">
                   {enrollment.status === 'processing' ? 'Processing your video...' : 'Under review by our team...'}
                 </p>
-                <p className="text-sm text-blue-600 mt-2">This usually takes 24-48 hours</p>
+                <p className="text-sm text-blue-600 mt-2">This usually takes 6-7 minutes</p>
               </div>
             </div>
           )}

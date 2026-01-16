@@ -156,3 +156,30 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Tooltip animations */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-8px) scale(1);
+  }
+}
+
+@keyframes tooltipFadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-8px) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px) scale(0.95);
+  }
+}
+
+.animate-tooltip-in {
+  animation: tooltipFadeIn 0.2s ease-out forwards;
+}
