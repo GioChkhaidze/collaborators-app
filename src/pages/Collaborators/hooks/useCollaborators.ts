@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { 
   Tab, 
   Enrollment, 
@@ -9,6 +9,39 @@ import type {
 } from '../types';
 import { campaigns, mockCollaborators, mockMerchantLeaderboard } from '../constants';
 import { nextEnrollmentState, isTerminalState } from '../utils';
+
+const ENROLLMENTS_STORAGE_KEY = 'snoonu-collaborators-enrollments';
+
+// Helper functions to serialize/deserialize enrollments with Date objects
+const loadEnrollmentsFromStorage = (): Enrollment[] => {
+  try {
+    const stored = localStorage.getItem(ENROLLMENTS_STORAGE_KEY);
+    if (!stored) return [];
+    
+    const parsed = JSON.parse(stored);
+    // Convert enrolledAt from ISO string back to Date
+    return parsed.map((e: any) => ({
+      ...e,
+      enrolledAt: new Date(e.enrolledAt),
+    }));
+  } catch (error) {
+    console.error('[useCollaborators] Failed to load enrollments from localStorage:', error);
+    return [];
+  }
+};
+
+const saveEnrollmentsToStorage = (enrollments: Enrollment[]): void => {
+  try {
+    // Convert Date objects to ISO strings for JSON serialization
+    const serialized = enrollments.map(e => ({
+      ...e,
+      enrolledAt: e.enrolledAt.toISOString(),
+    }));
+    localStorage.setItem(ENROLLMENTS_STORAGE_KEY, JSON.stringify(serialized));
+  } catch (error) {
+    console.error('[useCollaborators] Failed to save enrollments to localStorage:', error);
+  }
+};
 
 interface UseCollaboratorsReturn {
   // Tab state
@@ -47,11 +80,17 @@ interface UseCollaboratorsReturn {
 
 export const useCollaborators = (): UseCollaboratorsReturn => {
   const [activeTab, setActiveTab] = useState<Tab>('announcements');
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  // Initialize enrollments from localStorage on mount
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(() => loadEnrollmentsFromStorage());
   const [collaborators, setCollaborators] = useState<CollaboratorProfile[]>(mockCollaborators);
   const [merchantLeaderboard, setMerchantLeaderboard] = useState<MerchantLeaderboardEntry[]>(mockMerchantLeaderboard);
   const [isDemoExpanded, setDemoExpanded] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Save enrollments to localStorage whenever they change
+  useEffect(() => {
+    saveEnrollmentsToStorage(enrollments);
+  }, [enrollments]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
